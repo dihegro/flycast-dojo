@@ -741,7 +741,7 @@ void DojoGui::gui_display_relay_join(float scaling)
 			ImGui::TextColored(ImVec4(255, 255, 0, 1), "%s", ICON_FA_KEY);
 			ImGui::SameLine();
 
-			ImGui::InputText("Key", rk, IM_ARRAYSIZE(rk));
+			ImGui::InputText("Key", rk, IM_ARRAYSIZE(rk), ImGuiInputTextFlags_EnterReturnsTrue);
 		}
 		else
 		{
@@ -3422,7 +3422,7 @@ void DojoGui::spectate_key_popup()
 				ImGui::TextColored(ImVec4(255, 255, 0, 1), "%s", ICON_FA_KEY);
 				ImGui::SameLine();
 
-				ImGui::InputText("Match Code", rk, IM_ARRAYSIZE(rk));
+				ImGui::InputText("Match Code", rk, IM_ARRAYSIZE(rk), ImGuiInputTextFlags_EnterReturnsTrue);
 
 				ImGui::SetCursorPosX(ImGui::GetStyle().FramePadding.x * 9);
 				char start_btn_txt[128];
@@ -3505,7 +3505,7 @@ void DojoGui::spectate_key_popup()
 				ImGui::TextColored(ImVec4(255, 255, 0, 1), "%s", ICON_FA_KEY);
 				ImGui::SameLine();
 
-				ImGui::InputText("Key", rk, IM_ARRAYSIZE(rk));
+				ImGui::InputText("Key", rk, IM_ARRAYSIZE(rk), ImGuiInputTextFlags_EnterReturnsTrue);
 
 				ImGui::SetCursorPosX(ImGui::GetStyle().FramePadding.x * 9);
 				char start_btn_txt[128];
