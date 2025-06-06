@@ -742,6 +742,8 @@ void DojoGui::gui_display_relay_join(float scaling)
 			ImGui::SameLine();
 
 			ImGui::InputText("Key", rk, IM_ARRAYSIZE(rk), ImGuiInputTextFlags_EnterReturnsTrue);
+			const bool is_input_text_active = ImGui::IsItemActive();
+				const bool is_input_text_activated = ImGui::IsItemActivated();
 		}
 		else
 		{
@@ -3506,7 +3508,8 @@ void DojoGui::spectate_key_popup()
 				ImGui::SameLine();
 
 				ImGui::InputText("Key", rk, IM_ARRAYSIZE(rk), ImGuiInputTextFlags_EnterReturnsTrue);
-
+const bool is_input_text_active = ImGui::IsItemActive();
+				const bool is_input_text_activated = ImGui::IsItemActivated();
 				ImGui::SetCursorPosX(ImGui::GetStyle().FramePadding.x * 9);
 				char start_btn_txt[128];
 				sprintf(start_btn_txt, "%s Start", ICON_FA_CIRCLE_PLAY);
