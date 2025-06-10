@@ -173,10 +173,10 @@ static int spg_line_sched(int tag, int cycles, int jitter)
 
 #if !defined(NDEBUG) || defined(DEBUGFAST)
 			vblk_cnt++;
-			if ((os_GetSeconds()-last_fps)>2)
+			if ((os_GetSeconds()-last_fps)>2000)
 			{
 				static int Last_FC;
-				double ts=os_GetSeconds()-last_fps;
+				double ts=os_GetSeconds()-last_fps / 1000.0;
 				double spd_fps=(FrameCount-Last_FC)/ts;
 				double spd_vbs=vblk_cnt/ts;
 				double spd_cpu=spd_vbs*Frame_Cycles;
