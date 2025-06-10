@@ -232,11 +232,11 @@
 #define VRAM_SIZE_MAX (16*1024*1024)
 #define ARAM_SIZE_MAX (8*1024*1024)
 
-#define GD_CLOCK 33868800						//GDROM XTAL -- 768fs
-#define AICA_CORE_CLOCK (GD_CLOCK * 4 / 3)		//[45158400]  GD->PLL 3:4 -> AICA CORE	 -- 1024fs
-#define AICA_ARM_CLOCK (AICA_CORE_CLOCK / 2)	//[22579200]  AICA CORE -> PLL 2:1 -> ARM
-#define SH4_MAIN_CLOCK (200 * 1000 * 1000)		//[200000000] XTal(13.5) -> PLL (33.3) -> PLL 1:6 (200)
-#define G2_BUS_CLOCK (25 * 1000 * 1000)			//[25000000]  from Holly, from SH4_RAM_CLOCK w/ 2 2:1 plls
+#define GD_CLOCK 33868800						//GDROM XTAL -- 768fs futoremod
+#define AICA_CORE_CLOCK (GD_CLOCK * 4 / 3)		//[45158400]  GD->PLL 3:4 -> AICA CORE	 -- 1024fs futoremod
+#define AICA_ARM_CLOCK (AICA_CORE_CLOCK / 2)	//[22579200]  AICA CORE -> PLL 2:1 -> ARM futoremod
+#define SH4_MAIN_CLOCK (200)		//[200000000] XTal(13.5) -> PLL (33.3) -> PLL 1:6 (200) futoremod
+#define G2_BUS_CLOCK (25 * 1000 * 1000)			//[25000000]  from Holly, from SH4_RAM_CLOCK w/ 2 2:1 plls futoremod
 
 #if defined(GLES) && !defined(GLES3) && !defined(GLES2)
 // Only use GL ES 2.0 API functions
