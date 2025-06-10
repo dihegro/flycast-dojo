@@ -37,6 +37,13 @@ static u32 cpu_time_idx;
 bool SH4FastEnough;
 u32 fskip;
 
+// Variáveis para controle de timing estável
+static double frame_time_target = 1.0 / 60.0; // 60 FPS para NTSC, 50 para PAL
+static double last_frame_time = 0.0;
+static double accumulated_time = 0.0;
+static bool timing_stable_mode = true; // Flag para ativar modo de timing estável
+static double timing_adjustment_factor = 1.0;
+
 static u32 lightgun_line = 0xffff;
 static u32 lightgun_hpos;
 static bool maple_int_pending;
@@ -45,7 +52,12 @@ void CalculateSync()
 {
 	u32 pixel_clock = PIXEL_CLOCK / (FB_R_CTRL.vclk_div ? 1 : 2);
 
-	// We need to calculate the pixel clock
+	// Determinar framerate correto baseado no modo de vídeo
+	if (SPG_CONTROL.NTSC == 0 && SPG_CONTROL.PAL == 1) {
+		frame_time_target = 1.0 / 50.0; // PAL 50Hz
+	} else {
+		frame_time_target = 1.0 / 60.0; // NTSC 60Hz ou VGA
+	}
 
 	pvr_numscanlines = SPG_LOAD.vcount + 1;
 
@@ -88,12 +100,43 @@ static int getNextSpgInterrupt()
 
 	min_active = std::max(min_active, min_scanline);
 
-	return (min_active - prv_cur_scanline) * Line_Cycles;
+	u32 cycles = (min_active - prv_cur_scanline) * Line_Cycles;
+	
+	// Aplicar ajuste de timing se necessário
+	if (timing_stable_mode && timing_adjustment_factor != 1.0) {
+		cycles = (u32)(cycles * timing_adjustment_factor);
+	}
+
+	return cycles;
 }
 
 void rescheduleSPG()
 {
 	sh4_sched_request(vblank_schid, getNextSpgInterrupt());
+}
+
+// Função para calcular ajuste de timing baseado na performance real
+static void calculateTimingAdjustment()
+{
+	if (!timing_stable_mode) return;
+	
+	double current_time = os_GetSeconds();
+	if (last_frame_time > 0.0) {
+		double actual_frame_time = current_time - last_frame_time;
+		double target_time = frame_time_target;
+		
+		// Calcular diferença entre tempo real e tempo alvo
+		double time_diff = actual_frame_time - target_time;
+		accumulated_time += time_diff;
+		
+		// Ajustar apenas se a diferença acumulada for significativa
+		if (std::abs(accumulated_time) > target_time * 0.1) { // 10% de tolerância
+			timing_adjustment_factor = 1.0 + (accumulated_time / target_time) * 0.1;
+			timing_adjustment_factor = std::max(0.5, std::min(2.0, timing_adjustment_factor));
+			accumulated_time *= 0.5; // Reduzir acúmulo gradualmente
+		}
+	}
+	last_frame_time = current_time;
 }
 
 static int spg_line_sched(int tag, int cycles, int jitter)
@@ -151,6 +194,9 @@ static int spg_line_sched(int tag, int cycles, int jitter)
 			else
 				SPG_STATUS.fieldnum = 0;
 
+			// Calcular ajuste de timing antes do vblank
+			calculateTimingAdjustment();
+
 			rend_vblank();
 
 			double now = os_GetSeconds() * 1000000.0;
@@ -160,7 +206,10 @@ static int spg_line_sched(int tag, int cycles, int jitter)
 				u32 cycle_span = (u32)(sh4_sched_now64() - cpu_cycles[cpu_time_idx]);
 				double time_span = now - real_times[cpu_time_idx];
 				double cpu_speed = ((double)cycle_span / time_span) / (SH4_MAIN_CLOCK / 100000000);
-				SH4FastEnough = cpu_speed >= 85.0;
+				
+				// Ajustar threshold baseado no modo de timing estável
+				double speed_threshold = timing_stable_mode ? 75.0 : 85.0;
+				SH4FastEnough = cpu_speed >= speed_threshold;
 			}
 			else
 				SH4FastEnough = false;
@@ -207,10 +256,10 @@ static int spg_line_sched(int tag, int cycles, int jitter)
 
 				double full_rps = spd_fps + fskip / ts;
 
-				INFO_LOG(COMMON, "%s/%c - %4.2f - %4.2f - V: %4.2f (%.2f, %s%s%4.2f) R: %4.2f+%4.2f",
+				INFO_LOG(COMMON, "%s/%c - %4.2f - %4.2f - V: %4.2f (%.2f, %s%s%4.2f) R: %4.2f+%4.2f | TAdj: %.3f",
 					VER_SHORTNAME,'n',mspdf,spd_cpu*100/200,spd_vbs,
 					spd_vbs/full_rps,mode,res,fullvbs,
-					spd_fps,fskip/ts);
+					spd_fps,fskip/ts,timing_adjustment_factor);
 				
 				fskip=0;
 				last_fps=os_GetSeconds();
@@ -247,6 +296,16 @@ void read_lightgun_position(int x, int y)
 	}
 }
 
+// Função para ativar/desativar modo de timing estável
+void spg_set_stable_timing(bool enable)
+{
+	timing_stable_mode = enable;
+	if (!enable) {
+		timing_adjustment_factor = 1.0;
+		accumulated_time = 0.0;
+	}
+}
+
 bool spg_Init()
 {
 	render_end_schid = sh4_sched_register(0, &rend_end_render);
@@ -271,6 +330,11 @@ void spg_Reset(bool hard)
 	cpu_time_idx = 0;
 	cpu_cycles.fill(0);
 	real_times.fill(0.0);
+	
+	// Reset timing control variables
+	last_frame_time = 0.0;
+	accumulated_time = 0.0;
+	timing_adjustment_factor = 1.0;
 }
 
 void scheduleRenderDone(TA_context *cntx)
@@ -289,6 +353,12 @@ void scheduleRenderDone(TA_context *cntx)
 			cycles = std::min(550000 + size * 100, 1500000);
 		}
 	}
+	
+	// Aplicar ajuste de timing ao render
+	if (timing_stable_mode && timing_adjustment_factor != 1.0) {
+		cycles = (int)(cycles * timing_adjustment_factor);
+	}
+	
 	sh4_sched_request(render_end_schid, cycles);
 }
 
@@ -302,7 +372,11 @@ void spg_Serialize(Serializer& ser)
 	ser << Frame_Cycles;
 	ser << lightgun_line;
 	ser << lightgun_hpos;
+	ser << timing_stable_mode;
+	ser << timing_adjustment_factor;
+	ser << accumulated_time;
 }
+
 void spg_Deserialize(Deserializer& deser)
 {
 	if (deser.version() < Deserializer::V30)
@@ -332,6 +406,21 @@ void spg_Deserialize(Deserializer& deser)
 			deser >> Frame_Cycles;
 			deser >> lightgun_line;
 			deser >> lightgun_hpos;
+			
+			// Carregar novas variáveis de timing se disponíveis
+			if (deser.version() >= Deserializer::V31) // Assumindo nova versão
+			{
+				deser >> timing_stable_mode;
+				deser >> timing_adjustment_factor;
+				deser >> accumulated_time;
+			}
+			else
+			{
+				// Valores padrão para saves mais antigos
+				timing_stable_mode = true;
+				timing_adjustment_factor = 1.0;
+				accumulated_time = 0.0;
+			}
 		}
 	}
 	if (deser.version() < Deserializer::V14)
