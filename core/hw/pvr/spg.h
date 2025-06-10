@@ -13,3 +13,4 @@ void CalculateSync();
 void read_lightgun_position(int x, int y);
 void scheduleRenderDone(TA_context *cntx);
 void rescheduleSPG();
+void spg_set_stable_timing(bool enable);
